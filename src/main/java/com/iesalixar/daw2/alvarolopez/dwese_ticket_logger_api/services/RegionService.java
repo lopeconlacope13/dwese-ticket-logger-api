@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 
+import javax.swing.text.html.parser.Entity;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -123,4 +124,33 @@ public class RegionService {
         }
 
     }
+
+    /**
+     Elimina una región especifica por su ID.
+     * @param id Identificador único de la región.
+     * @return Respuesta HTTP con el estado de la operación.
+     */
+    public ResponseEntity<?> deleteRegion(Long id) {
+        try {
+            logger.info("Eliminando región con ID {}", id);
+            if (!regionRepository.existsById(id)) {
+                Logger.warn("No se encontró región con ID {}", id);
+                return Response Entity.status(HttpStatus.NOT_FOUND).body("La región no existe.");
+            }
+
+            regionRepository.deleteById(id);
+
+            Logger.info("Región con ID {} eliminada exitosamente.", id);
+            return ResponseEntity.noContent().build();
+
+        } catch (Exception e) {
+            Logger.error("Error al eliminar la región con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al eliminar la región.");
+        }
+
+    }
+
+
+
+
 }
