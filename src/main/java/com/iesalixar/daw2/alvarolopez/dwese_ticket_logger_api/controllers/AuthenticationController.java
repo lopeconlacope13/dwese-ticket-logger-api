@@ -11,10 +11,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*; // Importamos todo para incluir RequestMapping
 
 import java.util.List;
 
@@ -23,59 +20,55 @@ import java.util.List;
  * Proporciona un endpoint para autenticar usuarios y generar un token JWT en caso de éxito.
  */
 @RestController
+@RequestMapping("/api/v1") // <--- ¡ESTA LÍNEA ES LA QUE FALTABA!
 public class AuthenticationController {
 
     @Autowired
-    private AuthenticationManager authenticationManager; // Maneja la lógica de autenticación
+    private AuthenticationManager authenticationManager;
     @Autowired
-    private JwtUtil jwtUtil; // Utilidad personalizada para manejar tokens JWT
+    private JwtUtil jwtUtil;
 
     /**
      * genera un token JWT que incluye informacion del usuario y sus roles
      *
      * @Param authRequest Un Objeto
      */
-
-    @PostMapping("/authenticate")
+    @PostMapping("/authenticate") // Al combinar con la de arriba, la ruta final es /api/v1/authenticate
     public ResponseEntity<AuthResponseDTO> authenticate(@Valid @RequestBody AuthRequestDTO authRequest) {
         try {
-            //Validar datos de entrada (opcional si no usas validación adiccional en DTO)
+            //Validar datos de entrada
             if (authRequest.getUsername() == null || authRequest.getPassword() == null){
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new AuthResponseDTO("", "El nombre de usuario y la contraseña son obligatorios."));
             }
-            //Intenta autenticar al usuario con las credenciales proporcionadas
+
+            //Intenta autenticar al usuario
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
             );
 
             //Obtiene el nombre de usuario autenticado
             String username = authentication.getName();
-            //Extrae los roles del usuario autenticado desde las autoridades asignadas
+
+            //Extrae los roles
             List<String> roles = authentication.getAuthorities().stream()
                     .map(authority -> authority.getAuthority())
                     .toList();
-            //Genera un token JWT para el usuario autenticado, incluyendo sus roles
+
+            //Genera un token JWT
             String token = jwtUtil.generateToken(username, roles);
-            //Retorna una respuesta con el token JWT y un mensaje de éxito
+
+            //Retorna respuesta exitosa
             return ResponseEntity.ok(new AuthResponseDTO(token, "Authentication successful"));
-        }catch (BadCredentialsException e){
+
+        } catch (BadCredentialsException e){
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new AuthResponseDTO(null, "Credenciales inválidas. Por favor, verifica tus datos."));
-        }catch (Exception e){
-            //Manejo de cualquier otro error
+        } catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new AuthResponseDTO(null, "Ocurrió un error inesperado. Por favor, inténtalo de nuevo mas tarde"));
         }
-
     }
-
-    /**
-     * Maneja excepciones no controladas que pueden ocurrir en el controlador.
-     *
-     * @param e La excepcion lanzada.
-     * @return Una respuesta HTTP con el mensaje de error y el estado HHTP correspondeinte
-     */
 
     @ExceptionHandler({Exception.class})
     public ResponseEntity<AuthResponseDTO> handleException(Exception e) {
