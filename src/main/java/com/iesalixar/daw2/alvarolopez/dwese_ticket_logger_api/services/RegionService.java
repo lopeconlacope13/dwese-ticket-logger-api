@@ -9,9 +9,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -30,22 +31,22 @@ public class RegionService {
     private MessageSource messageSource;
 
     @Autowired
-    private FileStorageService fileStorageService; // Servicio necesario para las imágenes
+    private FileStorageService fileStorageService;
 
     /**
-     * Obtiene todas las regiones de la base de datos y las convierte a DTOs.
-     * @return Lista de objetos RegionDTO representando todas las regiones.
+     * Obtiene todas las regiones con paginación y las convierte en una página de RegionDTO.
+     * @param pageable Objeto de paginación que define la página, el tamaño y la ordenación.
+     * @return Página de RegionDTO.
      */
-    public List<RegionDTO> getAllRegions() {
+    public Page<RegionDTO> getAllRegions(Pageable pageable) {
+        logger.info("Solicitando todas las regiones con paginación: página {}, tamaño {}",
+                pageable.getPageNumber(), pageable.getPageSize());
         try {
-            logger.info("Obteniendo todas las regiones...");
-            List<Region> regions = regionRepository.findAll();
-            logger.info("Se encontraron {} regiones.", regions.size());
-            return regions.stream()
-                    .map(regionMapper::toDTO)
-                    .toList();
+            Page<Region> regions = regionRepository.findAll(pageable);
+            logger.info("Se han encontrado {} regiones en la página actual.", regions.getNumberOfElements());
+            return regions.map(regionMapper::toDTO);
         } catch (Exception e) {
-            logger.error("Error al obtener todas las regiones: {}", e.getMessage());
+            logger.error("Error al obtener la lista paginada de regiones: {}", e.getMessage());
             throw new RuntimeException("Error al obtener todas las regiones.", e);
         }
     }
@@ -67,100 +68,92 @@ public class RegionService {
 
     /**
      * Crea una nueva región en la base de datos.
-     * (Adaptado de la pág. 6 del PDF)
      */
     public RegionDTO createRegion(RegionCreateDTO createDTO, Locale locale) {
-
         logger.info("Creando una nueva región con código {}", createDTO.getCode());
 
-        // Verificar si ya existe una región con el mismo código [cite: 134]
+        // Verificar si ya existe una región con el mismo código
         if (regionRepository.existsByCode(createDTO.getCode())) {
             String errorMessage = messageSource.getMessage("msg.region-controller.insert.codeExist", null, locale);
             throw new IllegalArgumentException(errorMessage);
         }
 
-        // Procesar la imagen si se proporciona [cite: 143]
+        // Procesar la imagen si se proporciona
         String fileName = null;
         if (createDTO.getImageFile() != null && !createDTO.getImageFile().isEmpty()) {
             fileName = fileStorageService.saveFile(createDTO.getImageFile());
             if (fileName == null) {
-                throw new RuntimeException("Error al guardar la imagen."); // [cite: 148]
+                throw new RuntimeException("Error al guardar la imagen.");
             }
         }
 
-        // Crear la entidad Region [cite: 149]
+        // Crear la entidad Region
         Region region = regionMapper.toEntity(createDTO);
         region.setImage(fileName);
 
-        // Guardar la nueva región [cite: 152]
+        // Guardar la nueva región
         Region savedRegion = regionRepository.save(region);
         logger.info("Región creada exitosamente con ID {}", savedRegion.getId());
 
-        // Convertir la entidad guardada a DTO y devolverla [cite: 155]
+        // Convertir la entidad guardada a DTO y devolverla
         return regionMapper.toDTO(savedRegion);
     }
 
     /**
      * Actualiza una región existente en la base de datos.
-     * (Adaptado de la pág. 9 del PDF)
      */
     public RegionDTO updateRegion(Long id, RegionCreateDTO updateDTO, Locale locale) {
-
         logger.info("Actualizando región con ID {}", id);
 
-        // Buscar la región existente [cite: 208]
+        // Buscar la región existente
         Region existingRegion = regionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("La región no existe."));
 
-        // Verificar si el código ya está en uso por otra región [cite: 211]
+        // Verificar si el nombre (código) ya está en uso por otra región
         if (regionRepository.existsRegionByCodeAndNotId(updateDTO.getCode(), id)) {
             String errorMessage = messageSource.getMessage("msg.region-controller.update.codeExist", null, locale);
             throw new IllegalArgumentException(errorMessage);
         }
 
-        // Procesar la imagen si se proporciona [cite: 221]
-        String fileName = existingRegion.getImage(); // Conservar la imagen existente por defecto [cite: 222]
+        // Procesar la imagen si se proporciona
+        String fileName = existingRegion.getImage(); // Conservar la imagen existente por defecto
         if (updateDTO.getImageFile() != null && !updateDTO.getImageFile().isEmpty()) {
             fileName = fileStorageService.saveFile(updateDTO.getImageFile());
             if (fileName == null) {
-                throw new RuntimeException("Error al guardar la nueva imagen."); // [cite: 225]
+                throw new RuntimeException("Error al guardar la nueva imagen.");
             }
         }
 
-        // Actualizar los datos de la región [cite: 229]
+        // Actualizar los datos de la región
         existingRegion.setCode(updateDTO.getCode());
         existingRegion.setName(updateDTO.getName());
         existingRegion.setImage(fileName);
 
-        // Guardar los cambios [cite: 233]
+        // Guardar los cambios
         Region updatedRegion = regionRepository.save(existingRegion);
         logger.info("Región con ID {} actualizada exitosamente.", updatedRegion.getId());
 
-        // Convertir la entidad actualizada a DTO y devolverla [cite: 236]
+        // Convertir la entidad actualizada a DTO y devolverla
         return regionMapper.toDTO(updatedRegion);
     }
 
     /**
      * Elimina una región por su ID.
-     * (Adaptado de la pág. 12 del PDF)
-     * @param id ID de la región a eliminar.
-     * @throws IllegalArgumentException Si la región no existe.
      */
     public void deleteRegion(Long id) {
-
         logger.info("Buscando región con ID {}", id);
 
-        // Buscar la región [cite: 301]
+        // Buscar la región
         Region region = regionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("La región no existe."));
 
-        // Eliminar la imagen asociada si existe [cite: 304]
+        // Eliminar la imagen asociada si existe
         if (region.getImage() != null && !region.getImage().isEmpty()) {
             fileStorageService.deleteFile(region.getImage());
             logger.info("Imagen asociada a la región con ID {} eliminada.", id);
         }
 
-        // Eliminar la región [cite: 309]
+        // Eliminar la región
         regionRepository.deleteById(id);
         logger.info("Región con ID {} eliminada exitosamente.", id);
     }
