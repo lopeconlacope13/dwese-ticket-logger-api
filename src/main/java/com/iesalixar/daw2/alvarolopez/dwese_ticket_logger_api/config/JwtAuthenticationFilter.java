@@ -37,7 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String username;
 
         // 2. Verificar si el encabezado Authorization está presente y tiene un token válido
-        // REFERENCIA PDF PÁGINA 22 [cite: 498]
+        // REFERENCIA PDF PÁGINA 22
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return; // <--- ESTO ES LO QUE TE FALTA Y VIENE EN EL PDF

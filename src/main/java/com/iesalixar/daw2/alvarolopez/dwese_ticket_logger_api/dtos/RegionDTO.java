@@ -33,4 +33,7 @@ public class RegionDTO {
      * Nombre completo de la region
      * Ejemplo "Andalucía, Catqluña*/
     private String name;
+
+
+    private String image;
 }

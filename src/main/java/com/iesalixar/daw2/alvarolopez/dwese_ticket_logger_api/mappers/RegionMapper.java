@@ -20,6 +20,7 @@ public class RegionMapper {
         dto.setId(region.getId());
         dto.setCode(region.getCode());
         dto.setName(region.getName());
+        dto.setImage(region.getImage());
         return dto;
     }
     /**
