@@ -52,7 +52,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // Las APIs REST no suelen necesitar CSRF
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Sin sesiones
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/tickets", "/api/regions" ).hasRole("USER") // Solo USER
+                        .requestMatchers("/api/tickets", "/api/regions", "/api/users" ).hasRole("USER") // Solo USER
                         .requestMatchers("/api/admin").hasRole("ADMIN") // Solo ADMIN
                         .requestMatchers(
                                 "/api/provinces",
@@ -66,7 +66,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",       // Interfaz de Swagger
                                 "/swagger-ui.html",     // Acceso directo a la página
                                 "/webjars/**",           // Recursos estáticos (CSS, JS)
-                                "/api-docs/**"
+                                "/api-docs/**",
+                                "/api/users/**"
                         ).permitAll()
                         .anyRequest().authenticated() // El resto requiere autenticación
                 )
