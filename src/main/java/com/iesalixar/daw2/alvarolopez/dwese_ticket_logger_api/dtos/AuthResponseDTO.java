@@ -11,6 +11,8 @@ public class AuthResponseDTO {
 
     private String token;
     private String message;
+    //
+    private boolean twoFactor;
 
 
 

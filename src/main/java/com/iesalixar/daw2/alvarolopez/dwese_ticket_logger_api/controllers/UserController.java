@@ -1,27 +1,21 @@
 package com.iesalixar.daw2.alvarolopez.dwese_ticket_logger_api.controllers;
 
 import com.iesalixar.daw2.alvarolopez.dwese_ticket_logger_api.dtos.UserDTO;
-import com.iesalixar.daw2.alvarolopez.dwese_ticket_logger_api.mappers.UserMapper;
 import com.iesalixar.daw2.alvarolopez.dwese_ticket_logger_api.services.UserService;
 import com.iesalixar.daw2.alvarolopez.dwese_ticket_logger_api.utils.JwtUtil;
 
-import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.util.List;
-import java.util.Optional;
-
 @Controller
-@RequestMapping("api/users")
+@RequestMapping("api/user")
 public class UserController {
 
 
@@ -57,7 +51,7 @@ public class UserController {
 
 
         try {
-            UserDTO userDTO = userService.getUserById(id);
+            UserDTO userDTO = userService.getUserDTOById(id);
             logger.info("La informacion del usuario logueado con id {}." + id);
             return ResponseEntity.ok(userDTO);
         } catch (Exception e) {

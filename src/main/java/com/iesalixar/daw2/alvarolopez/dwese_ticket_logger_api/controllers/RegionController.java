@@ -51,6 +51,8 @@ public class RegionController {
                             array = @ArraySchema(schema = @Schema(implementation = RegionDTO.class)))),
             @ApiResponse(responseCode = "500", description = "Error interno del servidor")
     })
+
+
     @GetMapping
     public ResponseEntity<Page<RegionDTO>> getAllRegions(
             @PageableDefault(size = 10, sort = "name") Pageable pageable
