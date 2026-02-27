@@ -19,67 +19,82 @@ import java.io.IOException;
 import java.util.List;
 
 @Component
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
+public class JwtAuthenticationFilter extends OncePerRequestFilter { //
+
+    // Inyección de dependencias
+    @Autowired
+    private JwtUtil jwtUtil; // Utilidad para generar, extraer y validar tokens JWT
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private CustomUserDetailsService userDetailsService; // Servicio personalizado para cargar detalles del usuario
 
-    @Autowired
-    private CustomUserDetailsService userDetailsService;
-
+    /**
+     * Métdo principal del filtro que intercepta cada solicitud HTTP entrante
+     * y valida el token JWT si está presente en el encabezado de autorización.
+     */
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         // 1. Extraer el encabezado Authorization de la solicitud
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
+        final String jwt;        // Variable para almacenar el token JWT
+        final String username;   // Variable para almacenar el nombre de usuario extraído del token
 
         // 2. Verificar si el encabezado Authorization está presente y tiene un token válido
-        // REFERENCIA PDF PÁGINA 22
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // Si el encabezado no está presente o no comienza con "Bearer ", pasa la solicitud al siguiente filtro
             filterChain.doFilter(request, response);
-            return; // <--- ESTO ES LO QUE TE FALTA Y VIENE EN EL PDF
+            return; // Termina la ejecución de este filtro
         }
 
-        // 3. Extraer el token JWT del encabezado
-        jwt = authHeader.substring(7);
+        // 3. Extraer el token JWT del encabezado (sin el prefijo "Bearer ")
+        jwt = authHeader.substring(7); // Elimina los primeros 7 caracteres ("Bearer ")
 
-        // 4. Extraer el nombre de usuario
-        username = jwtUtil.extractUsername(jwt);
+        // 4. Extraer el nombre de usuario (claim "sub") del token
+        username = jwtUtil.getUsername(jwt);
 
-        // 5. Verificar si no hay autenticación existente
+        // 5. Verificar si:
+        // - El nombre de usuario extraído no es nulo
+        // - No hay una autenticación existente en el contexto de seguridad
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-
-            // 6. Cargar los detalles del usuario
+            // 6. Cargar los detalles del usuario desde el servicio personalizado
             var userDetails = userDetailsService.loadUserByUsername(username);
 
-            // 7. Validar el token
+            // 7. Validar el token JWT con el nombre de usuario del usuario cargado
             if (jwtUtil.validateToken(jwt, userDetails.getUsername())) {
-
-                // 8. Extraer los claims
+                // 8. Extraer los claims del token (como los roles)
                 Claims claims = jwtUtil.extractAllClaims(jwt);
 
-                // 9. Extraer roles y convertir
-                List<String> roles = claims.get("roles", List.class);
+                // Lógica de bloqueo
+                Boolean is2FARequest = claims.get("twoFactor", Boolean.class);
+
+                final String requestPath = request.getServletPath(); // [NUEVO] Obtener la ruta actual
+
+                // Si el 2FA no está completo y el usuario NO está yendo al endpoint de validación:
+                if (Boolean.TRUE.equals(is2FARequest) && !requestPath.contains("/twofactor")) {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\": \"Pendiente completar segundo factor de autenticacion.\"}");
+                    return;
+                }
+
+                // 9. Extraer los roles del claim "roles" y convertirlos en GrantedAuthority
+                List<String> roles = claims.get("roles", List.class); // Obtiene la lista de roles del token
                 List<SimpleGrantedAuthority> authorities = roles.stream()
-                        .map(SimpleGrantedAuthority::new)
+                        .map(SimpleGrantedAuthority::new) // Convierte cada rol en SimpleGrantedAuthority
                         .toList();
 
-                // 10. Crear objeto de autenticación
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
 
-                // 11. Configurar detalles
+
+                // 10. Crear un objeto UsernamePasswordAuthenticationToken con los detalles del usuario y sus roles
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+
+                // 11. Configurar los detalles adicionales de la solicitud actual (por ejemplo, dirección IP)
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                // 12. Establecer autenticación en el contexto
+                // 12. Establecer la autenticación en el contexto de seguridad de Spring
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
-
-        // 13. Continuar con el siguiente filtro
+        // 13. Continuar con el siguiente filtro en la cadena de filtros
         filterChain.doFilter(request, response);
     }
 }

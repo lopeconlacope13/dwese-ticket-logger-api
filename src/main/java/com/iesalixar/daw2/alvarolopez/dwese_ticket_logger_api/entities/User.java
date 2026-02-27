@@ -79,6 +79,12 @@ import java.util.Set;
             // Fecha del último cambio de contraseña.
             @Column(name = "last_password_change_date")
             private LocalDateTime lastPasswordChangeDate;
+
+            @Column(name = "code")
+            private String code;
+
+
+
 // Relación muchos a muchos con la entidad `Role`.
 // Se establece FetchType.EAGER para que se carguen los roles junto al usuario
             @ManyToMany(fetch = FetchType.EAGER)

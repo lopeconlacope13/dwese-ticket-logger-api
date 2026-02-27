@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,7 +26,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true) // Activa la seguridad basada en metodos
+@EnableMethodSecurity  // Activa la seguridad basada en métodos
 public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
@@ -39,33 +40,28 @@ public class SecurityConfig {
     /**
      * Configura el filtro de seguridad para las solicitudes HTTP, especificando las
      * rutas permitidas y los roles necesarios para acceder a diferentes endpoints.
+     * * @param http instancia de {@link HttpSecurity} para configurar la seguridad.
      *
-     * @param http instancia de {@Link HttpSecurity} para configurar la seguridad.
-     * @return una instancia de {@Link SecurityFilterChain} que contiene la configuración de seguridad.
+     * @return una instancia de {@link SecurityFilterChain} que contiene la configuración de seguridad.
      * @throws Exception si ocurre un error en la configuración de seguridad.
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .securityMatcher("/api**")
+                .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable()) // Las APIs REST no suelen necesitar CSRF
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Sin sesiones
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/admin", "/api/regions", "/api/users", "/api/v1/twofactor" ).hasRole("ADMIN") // Solo ADMIN
                         .requestMatchers("/api/tickets", "/api/regions" ).hasRole("USER") // Solo USER
-                        .requestMatchers("/api/admin").hasRole("ADMIN") // Solo ADMIN
                         .requestMatchers(
                                 "/api/provinces",
                                 "/api/supermarkets",
                                 "/api/locations",
+                                "/api/regions",
                                 "/api/categories").hasRole("MANAGER") // Solo MANAGER
-                        .requestMatchers(
-                                "/api/v1/authenticate",
-                                "/api/v1/register",
-                                "/v3/api-docs/**",      // Documentación JSON
-                                "/swagger-ui/**",       // Interfaz de Swagger
-                                "/swagger-ui.html",     // Acceso directo a la página
-                                "/webjars/**",           // Recursos estáticos (CSS, JS)
-                                "/api-docs/**"
-                        ).permitAll()
+                        .requestMatchers("/api/v1/authenticate", "/api/v1/register", "/swagger-ui/**", "/v3/api-docs/**").permitAll() // Endpoints públicos
                         .anyRequest().authenticated() // El resto requiere autenticación
                 )
                 .exceptionHandling(exception -> exception
@@ -79,7 +75,7 @@ public class SecurityConfig {
      * Configura el proveedor de autenticación para usar el servicio de detalles de usuario
      * personalizado y el codificador de contraseñas.
      *
-     * @return una instancia de {@Link DaoAuthenticationProvider} para la autenticación.
+     * @return una instancia de {@link DaoAuthenticationProvider} para la autenticación.
      */
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -104,19 +100,19 @@ public class SecurityConfig {
 
     /**
      * Configura y expone un bean de tipo {@link AuthenticationManager}.
-     *
-     * En Spring Security, el ÀuthenticationManager` es el componente principal que se encarga
-     * de procesar solicitudes de autenticación. Este metodo obtiene la instancia de
-     * `AuthenticationManager`configurada automáticamente por Spring a través de
-     * `AuthenticationConfiguration`y la expone como un bean disponible en el contexto
+     * <p>
+     * En Spring Security, el `AuthenticationManager` es el componente principal que se encarga
+     * de procesar solicitudes de autenticación. Este método obtiene la instancia de
+     * `AuthenticationManager` configurada automáticamente por Spring a través de
+     * `AuthenticationConfiguration` y la expone como un bean disponible en el contexto
      * de la aplicación.
      *
      * @param configuration Objeto de tipo {@link AuthenticationConfiguration} que contiene
      *                      la configuración de autenticación de Spring Security. Este objeto
      *                      incluye los detalles del flujo de autenticación configurado, como
-     *                      el proveedor de autenticación y los detalles de usuario.
+     *                      el proveedor de autenticación y los detalles del usuario.
      * @return Una instancia de {@link AuthenticationManager} configurada con los detalles
-     *          específicados en la aplicación.
+     * especificados en la aplicación.
      * @throws Exception Si ocurre algún error al obtener el `AuthenticationManager`.
      */
     @Bean
@@ -124,6 +120,4 @@ public class SecurityConfig {
         // Obtiene y devuelve el AuthenticationManager desde la configuración proporcionada
         return configuration.getAuthenticationManager();
     }
-
-
 }
